@@ -7,14 +7,17 @@ import com.google.gson.Gson;
 import org.apache.mina.core.future.ConnectFuture;
 import org.apache.mina.core.service.IoConnector;
 import org.apache.mina.core.session.IoSession;
+import org.apache.mina.core.session.IoSessionInitializer;
 import org.apache.mina.filter.codec.ProtocolCodecFilter;
 import org.apache.mina.filter.codec.serialization.ObjectSerializationCodecFactory;
 import org.apache.mina.filter.codec.textline.LineDelimiter;
 import org.apache.mina.filter.codec.textline.TextLineCodecFactory;
+import org.apache.mina.transport.socket.SocketAcceptor;
 import org.apache.mina.transport.socket.nio.NioSocketConnector;
 
 import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
+import java.util.Map;
 
 /**
  * mina客户端
@@ -46,7 +49,9 @@ public class MinaClient {
         // 设置session属性,获取服务端连接
         ConnectFuture future = connector.connect(new InetSocketAddress(host, port));
         future.awaitUninterruptibly();// 等待我们的连接
+
         session = future.getSession();
+
     }
 
     public void send(FromClientBean fromClientBean) {
@@ -57,7 +62,6 @@ public class MinaClient {
 
     public void close() {
         if (null != session) {
-            session.getCloseFuture().awaitUninterruptibly();// 等待关闭连接
             session.closeNow();
         }
         if (null != connector) {

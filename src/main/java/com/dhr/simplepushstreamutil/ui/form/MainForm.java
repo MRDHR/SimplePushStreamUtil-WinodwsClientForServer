@@ -4,17 +4,20 @@ import com.dhr.simplepushstreamutil.bean.*;
 import com.dhr.simplepushstreamutil.entity.LiveAreaListEntity;
 import com.dhr.simplepushstreamutil.mina.MinaClient;
 import com.dhr.simplepushstreamutil.ui.dialog.*;
+import com.dhr.simplepushstreamutil.util.JschUtil;
 import com.dhr.simplepushstreamutil.util.JsonUtil;
 import com.dhr.simplepushstreamutil.util.ParseMessageUtil;
+import com.dhr.simplepushstreamutil.util.SftpUtil;
 import com.google.gson.Gson;
+import com.jcraft.jsch.ChannelSftp;
 import org.jb2011.lnf.beautyeye.BeautyEyeLNFHelper;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -55,6 +58,12 @@ public class MainForm extends JFrame {
 
     private MinaClient minaClient;
 
+    private JschUtil jschUtil = new JschUtil();
+    private SftpUtil sftpUtil;
+    private String userDirPath = new File(System.getProperty("user.dir")).getPath();
+    private File file1 = new File(userDirPath + "\\SimplePushStreamUtil-Server.service");
+    private File file2 = new File(userDirPath + "\\SimplePushStreamUtil-Server.jar");
+
     public static void main(String[] args) {
         try {
             BeautyEyeLNFHelper.frameBorderStyle = BeautyEyeLNFHelper.FrameBorderStyle.generalNoTranslucencyShadow;
@@ -72,6 +81,10 @@ public class MainForm extends JFrame {
         JMenuBar mb = new JMenuBar();                 //实例菜单栏
         JMenu config = new JMenu("配置");                //实例一个菜单项
         JMenu environment = new JMenu("环境");                //实例一个菜单项
+        JMenuItem mi10 = new JMenuItem("安装推流服务端");
+        JMenuItem mi7 = new JMenuItem("安装ffmpeg");
+        JMenuItem mi8 = new JMenuItem("安装youtube-dl");
+        JMenuItem mi9 = new JMenuItem("安装streamlink");
         JMenu more = new JMenu("更多");
         JMenuItem mi2 = new JMenuItem("配置B站账号");
         JMenuItem mi3 = new JMenuItem("配置解析方案");
@@ -90,10 +103,20 @@ public class MainForm extends JFrame {
         more.add(mi5);                              //添加子目录
         more.add(mi6);
 
+        environment.add(mi10);
+        environment.add(mi7);
+        environment.add(mi8);
+        environment.add(mi9);
+
         mi2.addActionListener(e -> mainForm.showBilibiliAccountDialog());
 
         mi3.addActionListener(e -> mainForm.showConfigSchemeDialog());
         mi6.addActionListener(e -> mainForm.showTipsDialog("随手写的程序，没啥好说的"));
+
+        mi7.addActionListener(e -> mainForm.installFfmpeg());
+        mi8.addActionListener(e -> mainForm.installYoutubeDl());
+        mi9.addActionListener(e -> mainForm.installStreamLink());
+        mi10.addActionListener(e -> mainForm.installServer());
 
         frame.setContentPane(mainForm.panel1);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -106,10 +129,208 @@ public class MainForm extends JFrame {
         initData();
     }
 
+    private void installFfmpeg() {
+        serverIp = tfServerIp.getText();
+        String cacheServerPort = tfServerPort.getText();
+        userName = tfUserName.getText();
+        userPassword = tfUserPassword.getText();
+        if (null == serverIp || serverIp.isEmpty()) {
+            showTipsDialog("服务器ip不能为空");
+        } else if (null == cacheServerPort || cacheServerPort.isEmpty()) {
+            showTipsDialog("端口号不能为空");
+        } else if (null == userName || userName.isEmpty()) {
+            showTipsDialog("用户名不能为空");
+        } else if (null == userPassword || userPassword.isEmpty()) {
+            showTipsDialog("用户密码不能为空");
+        } else {
+            taLog.setText("开始安装ffmpeg，请耐心等待（全过程预计5-6分钟。由于同步的问题，日志输出较慢）\n");
+            try {
+                serverPort = Integer.parseInt(cacheServerPort);
+                executorService.execute(() -> {
+                    try {
+                        jschUtil.versouSshUtil(serverIp, userName, userPassword, serverPort);
+                        List<String> strings = jschUtil.runCmd("yum -y install wget", "UTF-8");
+                        for (String str : strings) {
+                            addTextToLog(str + "\n");
+                        }
+                        addTextToLog("wget部分已完成，开始准备ffmpeg环境" + "\n");
+                        strings = jschUtil.runCmd("wget https://raw.githubusercontent.com/q3aql/ffmpeg-install/master/ffmpeg-install", "UTF-8");
+                        for (String str : strings) {
+                            addTextToLog(str + "\n");
+                        }
+                        addTextToLog("ffmpeg安装脚本下载完毕，开始设置权限" + "\n");
+                        strings = jschUtil.runCmd("chmod a+x ffmpeg-install", "UTF-8");
+                        for (String str : strings) {
+                            addTextToLog(str + "\n");
+                        }
+                        addTextToLog("权限设置完毕，开始执行安装脚本。预计需要5-6分钟" + "\n");
+                        strings = jschUtil.runCmd("./ffmpeg-install --install release", "UTF-8");
+                        for (String str : strings) {
+                            addTextToLog(str + "\n");
+                        }
+                        addTextToLog("ffmpeg安装结束\n");
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                        addTextToLog("ffmpeg安装失败\n");
+                    }
+                });
+            } catch (Exception ex) {
+                showTipsDialog("您输入的端口号有误，请检查后重试！（端口号均为整数数字）");
+            }
+        }
+    }
+
+    private void installYoutubeDl() {
+        serverIp = tfServerIp.getText();
+        String cacheServerPort = tfServerPort.getText();
+        userName = tfUserName.getText();
+        userPassword = tfUserPassword.getText();
+        if (null == serverIp || serverIp.isEmpty()) {
+            showTipsDialog("服务器ip不能为空");
+        } else if (null == cacheServerPort || cacheServerPort.isEmpty()) {
+            showTipsDialog("端口号不能为空");
+        } else if (null == userName || userName.isEmpty()) {
+            showTipsDialog("用户名不能为空");
+        } else if (null == userPassword || userPassword.isEmpty()) {
+            showTipsDialog("用户密码不能为空");
+        } else {
+            taLog.setText("开始安装youtube-dl，请耐心等待（全过程预计1-2分钟。由于同步的问题，日志输出较慢）\n");
+            try {
+                serverPort = Integer.parseInt(cacheServerPort);
+                executorService.execute(() -> {
+                    try {
+                        jschUtil.versouSshUtil(serverIp, userName, userPassword, serverPort);
+                        List<String> strings = jschUtil.runCmd("yum -y install wget", "UTF-8");
+                        for (String str : strings) {
+                            addTextToLog(str + "\n");
+                        }
+                        addTextToLog("wget部分已完成，开始准备youtube-dl环境" + "\n");
+                        strings = jschUtil.runCmd("wget https://yt-dl.org/downloads/latest/youtube-dl -O /usr/local/bin/youtube-dl", "UTF-8");
+                        for (String str : strings) {
+                            addTextToLog(str + "\n");
+                        }
+                        addTextToLog("youtube-dl下载完毕，开始设置权限" + "\n");
+                        strings = jschUtil.runCmd("chmod a+rx /usr/local/bin/youtube-dl", "UTF-8");
+                        for (String str : strings) {
+                            addTextToLog(str + "\n");
+                        }
+                        addTextToLog("权限设置完毕" + "\n");
+                        addTextToLog("youtube-dl安装结束\n");
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                        addTextToLog("youtube-dl安装失败\n");
+                    }
+                });
+            } catch (Exception ex) {
+                showTipsDialog("您输入的端口号有误，请检查后重试！（端口号均为整数数字）");
+            }
+        }
+    }
+
+    private void installStreamLink() {
+        serverIp = tfServerIp.getText();
+        String cacheServerPort = tfServerPort.getText();
+        userName = tfUserName.getText();
+        userPassword = tfUserPassword.getText();
+        if (null == serverIp || serverIp.isEmpty()) {
+            showTipsDialog("服务器ip不能为空");
+        } else if (null == cacheServerPort || cacheServerPort.isEmpty()) {
+            showTipsDialog("端口号不能为空");
+        } else if (null == userName || userName.isEmpty()) {
+            showTipsDialog("用户名不能为空");
+        } else if (null == userPassword || userPassword.isEmpty()) {
+            showTipsDialog("用户密码不能为空");
+        } else {
+            taLog.setText("开始安装streamlink，请耐心等待（全过程预计1-2分钟。由于同步的问题，日志输出较慢）\n");
+            try {
+                serverPort = Integer.parseInt(cacheServerPort);
+                executorService.execute(() -> {
+                    try {
+                        jschUtil.versouSshUtil(serverIp, userName, userPassword, serverPort);
+                        List<String> strings = jschUtil.runCmd("yum -y install wget", "UTF-8");
+                        for (String str : strings) {
+                            addTextToLog(str + "\n");
+                        }
+                        addTextToLog("wget部分已完成，开始下载pip安装脚本" + "\n");
+                        strings = jschUtil.runCmd("wget https://bootstrap.pypa.io/get-pip.py", "UTF-8");
+                        for (String str : strings) {
+                            addTextToLog(str + "\n");
+                        }
+                        addTextToLog("pip安装脚本下载已完成，开始安装python pip环境" + "\n");
+                        strings = jschUtil.runCmd("python get-pip.py", "UTF-8");
+                        for (String str : strings) {
+                            addTextToLog(str + "\n");
+                        }
+                        addTextToLog("python pip环境安装完成，开始安装streamlink环境" + "\n");
+                        strings = jschUtil.runCmd("pip install streamlink", "UTF-8");
+                        for (String str : strings) {
+                            addTextToLog(str + "\n");
+                        }
+                        addTextToLog("streamlink安装结束\n");
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                        addTextToLog("streamlink安装失败\n");
+                    }
+                });
+            } catch (Exception ex) {
+                showTipsDialog("您输入的端口号有误，请检查后重试！（端口号均为整数数字）");
+            }
+        }
+    }
+
+    private void installServer() {
+        serverIp = tfServerIp.getText();
+        String cacheServerPort = tfServerPort.getText();
+        userName = tfUserName.getText();
+        userPassword = tfUserPassword.getText();
+        if (null == serverIp || serverIp.isEmpty()) {
+            showTipsDialog("服务器ip不能为空");
+        } else if (null == cacheServerPort || cacheServerPort.isEmpty()) {
+            showTipsDialog("端口号不能为空");
+        } else if (null == userName || userName.isEmpty()) {
+            showTipsDialog("用户名不能为空");
+        } else if (null == userPassword || userPassword.isEmpty()) {
+            showTipsDialog("用户密码不能为空");
+        } else {
+            taLog.setText("开始上传服务端文件，请耐心等待（全过程预计1-2分钟。由于同步的问题，日志输出较慢）\n");
+            try {
+                serverPort = Integer.parseInt(cacheServerPort);
+                executorService.execute(() -> {
+                    try {
+                        sftpUtil = new SftpUtil(userName, userPassword, serverIp, serverPort);
+                        ChannelSftp login = sftpUtil.login();
+                        if (null != login) {
+//                            addTextToLog("登录服务器成功，开始上传linux服务文件\n");
+//                            FileInputStream fis = new FileInputStream(file1);
+//                            sftpUtil.upload("/usr/local/src/", "SimplePushStreamUtil/", "SimplePushStreamUtil-Server.service", fis);
+//                            addTextToLog("第一个文件上传成功，开始上传jar包（时间比较久）\n");
+//                            fis = new FileInputStream(file2);
+//                            sftpUtil.upload("/usr/local/src/", "SimplePushStreamUtil/", "SimplePushStreamUtil-Server.jar", fis);
+//                            addTextToLog("上传完成，开始配置环境\n");
+                            jschUtil.versouSshUtil(serverIp, userName, userPassword, serverPort);
+                            jschUtil.runCmd("cd /usr/local/src/SimplePushStreamUtil/ && mv SimplePushStreamUtil-Server.service /etc/systemd/system/", "UTF-8");
+                            jschUtil.runCmd("systemctl disable SimplePushStreamUtil-Server.service", "UTF-8");
+                            jschUtil.runCmd("systemctl enable SimplePushStreamUtil-Server.service", "UTF-8");
+                            jschUtil.runCmd("systemctl start SimplePushStreamUtil-Server.service", "UTF-8");
+                            addTextToLog("开启服务成功");
+                        } else {
+                            addTextToLog("登录服务器失败");
+                        }
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                });
+            } catch (Exception ex) {
+                showTipsDialog("您输入的端口号有误，请检查后重试！（端口号均为整数数字）");
+            }
+        }
+    }
+
     /**
      * 初始化界面
      */
     private void initView() {
+        rbBoth.setSelected(true);
         btnCloseLiveRoom.setEnabled(false);
         btnToMyLiveRoom.setEnabled(false);
 
@@ -120,10 +341,9 @@ public class MainForm extends JFrame {
 
         btnConnect.addActionListener(e -> serverConnect());
 
-        btnDisconnect.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-
+        btnDisconnect.addActionListener(e -> {
+            if (null != minaClient) {
+                minaClient.close();
             }
         });
 
@@ -150,6 +370,7 @@ public class MainForm extends JFrame {
         btnCloseLiveRoom.addActionListener(e -> closeLiveRoom());
 
         btnToMyLiveRoom.addActionListener(e -> toMyLIveRoom());
+
     }
 
     /**
@@ -878,4 +1099,6 @@ public class MainForm extends JFrame {
     private JTextArea taLiveRoomUrl;
     private JRadioButton rbBoth;
     private JButton btnDisconnect;
+    private JPanel serverInfoPanel;
+    private JPanel liveRoomControlPanel;
 }

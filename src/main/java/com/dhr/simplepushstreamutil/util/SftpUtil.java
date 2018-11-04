@@ -63,7 +63,7 @@ public class SftpUtil {
     /**
      * 连接sftp服务器
      */
-    public void login() {
+    public ChannelSftp login() {
         try {
             JSch jsch = new JSch();
             if (privateKey != null) {
@@ -85,9 +85,11 @@ public class SftpUtil {
             channel.connect();
 
             sftp = (ChannelSftp) channel;
+            return sftp;
         } catch (JSchException e) {
             e.printStackTrace();
         }
+        return null;
     }
 
     /**
