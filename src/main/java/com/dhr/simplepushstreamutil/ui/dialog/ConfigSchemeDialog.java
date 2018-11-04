@@ -3,8 +3,6 @@ package com.dhr.simplepushstreamutil.ui.dialog;
 import com.dhr.simplepushstreamutil.bean.ConfigSchemeBean;
 import com.dhr.simplepushstreamutil.bean.LocalDataBean;
 import com.dhr.simplepushstreamutil.ui.form.MainForm;
-import com.dhr.simplepushstreamutil.util.JsonUtil;
-import com.google.gson.Gson;
 
 import javax.swing.*;
 import java.awt.*;
