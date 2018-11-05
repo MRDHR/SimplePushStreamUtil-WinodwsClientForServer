@@ -117,7 +117,7 @@ public class SftpUtil {
      * @param sftpFileName sftp端文件名
      * @param input        输入流
      */
-    public void upload(String basePath, String directory, String sftpFileName, InputStream input) throws SftpException {
+    public void upload(String basePath, String directory, String sftpFileName, InputStream input, UploadMonitor uploadMonitor) throws SftpException {
         try {
             sftp.cd(basePath);
             sftp.cd(directory);
@@ -136,7 +136,7 @@ public class SftpUtil {
                 }
             }
         }
-        sftp.put(input, sftpFileName);  //上传文件
+        sftp.put(input, sftpFileName, uploadMonitor);  //上传文件
     }
 
 

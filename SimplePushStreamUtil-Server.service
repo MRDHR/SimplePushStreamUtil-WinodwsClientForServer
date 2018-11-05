@@ -1,0 +1,15 @@
+[Unit]
+Description=SimplePushStreamUtil api service by java
+After=network.target
+
+[Service]
+User=root
+#Type=forking
+ExecStart=/usr/bin/env bash -c "java -jar /usr/local/src/SimplePushStreamUtil/SimplePushStreamUtil-Server.jar"
+SuccessExitStatus=143
+TimeoutStopSec=10
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

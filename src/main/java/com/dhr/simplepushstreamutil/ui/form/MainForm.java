@@ -4,10 +4,7 @@ import com.dhr.simplepushstreamutil.bean.*;
 import com.dhr.simplepushstreamutil.entity.LiveAreaListEntity;
 import com.dhr.simplepushstreamutil.mina.MinaClient;
 import com.dhr.simplepushstreamutil.ui.dialog.*;
-import com.dhr.simplepushstreamutil.util.JschUtil;
-import com.dhr.simplepushstreamutil.util.JsonUtil;
-import com.dhr.simplepushstreamutil.util.ParseMessageUtil;
-import com.dhr.simplepushstreamutil.util.SftpUtil;
+import com.dhr.simplepushstreamutil.util.*;
 import com.google.gson.Gson;
 import com.jcraft.jsch.ChannelSftp;
 import org.jb2011.lnf.beautyeye.BeautyEyeLNFHelper;
@@ -17,6 +14,7 @@ import java.awt.*;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -148,9 +146,12 @@ public class MainForm extends JFrame {
                 executorService.execute(() -> {
                     try {
                         jschUtil.versouSshUtil(serverIp, userName, userPassword, serverPort);
-                        List<String> strings = jschUtil.runCmd("yum -y install wget", "UTF-8");
-                        for (String str : strings) {
-                            addTextToLog(str + "\n");
+                        List<String> strings = jschUtil.runCmd("yum list installed | grep wget", "UTF-8");
+                        if (null == strings || strings.isEmpty()) {
+                            strings = jschUtil.runCmd("yum -y install wget", "UTF-8");
+                            for (String str : strings) {
+                                addTextToLog(str + "\n");
+                            }
                         }
                         addTextToLog("wget部分已完成，开始准备ffmpeg环境" + "\n");
                         strings = jschUtil.runCmd("wget https://raw.githubusercontent.com/q3aql/ffmpeg-install/master/ffmpeg-install", "UTF-8");
@@ -199,9 +200,12 @@ public class MainForm extends JFrame {
                 executorService.execute(() -> {
                     try {
                         jschUtil.versouSshUtil(serverIp, userName, userPassword, serverPort);
-                        List<String> strings = jschUtil.runCmd("yum -y install wget", "UTF-8");
-                        for (String str : strings) {
-                            addTextToLog(str + "\n");
+                        List<String> strings = jschUtil.runCmd("yum list installed | grep wget", "UTF-8");
+                        if (null == strings || strings.isEmpty()) {
+                            strings = jschUtil.runCmd("yum -y install wget", "UTF-8");
+                            for (String str : strings) {
+                                addTextToLog(str + "\n");
+                            }
                         }
                         addTextToLog("wget部分已完成，开始准备youtube-dl环境" + "\n");
                         strings = jschUtil.runCmd("wget https://yt-dl.org/downloads/latest/youtube-dl -O /usr/local/bin/youtube-dl", "UTF-8");
@@ -246,9 +250,12 @@ public class MainForm extends JFrame {
                 executorService.execute(() -> {
                     try {
                         jschUtil.versouSshUtil(serverIp, userName, userPassword, serverPort);
-                        List<String> strings = jschUtil.runCmd("yum -y install wget", "UTF-8");
-                        for (String str : strings) {
-                            addTextToLog(str + "\n");
+                        List<String> strings = jschUtil.runCmd("yum list installed | grep wget", "UTF-8");
+                        if (null == strings || strings.isEmpty()) {
+                            strings = jschUtil.runCmd("yum -y install wget", "UTF-8");
+                            for (String str : strings) {
+                                addTextToLog(str + "\n");
+                            }
                         }
                         addTextToLog("wget部分已完成，开始下载pip安装脚本" + "\n");
                         strings = jschUtil.runCmd("wget https://bootstrap.pypa.io/get-pip.py", "UTF-8");
@@ -299,13 +306,15 @@ public class MainForm extends JFrame {
                         sftpUtil = new SftpUtil(userName, userPassword, serverIp, serverPort);
                         ChannelSftp login = sftpUtil.login();
                         if (null != login) {
-//                            addTextToLog("登录服务器成功，开始上传linux服务文件\n");
-//                            FileInputStream fis = new FileInputStream(file1);
-//                            sftpUtil.upload("/usr/local/src/", "SimplePushStreamUtil/", "SimplePushStreamUtil-Server.service", fis);
-//                            addTextToLog("第一个文件上传成功，开始上传jar包（时间比较久）\n");
-//                            fis = new FileInputStream(file2);
-//                            sftpUtil.upload("/usr/local/src/", "SimplePushStreamUtil/", "SimplePushStreamUtil-Server.jar", fis);
-//                            addTextToLog("上传完成，开始配置环境\n");
+                            addTextToLog("登录服务器成功，开始上传linux服务文件\n");
+                            FileInputStream fis = new FileInputStream(file1);
+                            UploadMonitor monitor = new UploadMonitor(file1.length(), uploadCallBack);
+                            sftpUtil.upload("/usr/local/src/", "SimplePushStreamUtil/", "SimplePushStreamUtil-Server.service", fis, monitor);
+                            addTextToLog("第一个文件上传成功，开始上传jar包（时间比较久）\n");
+                            fis = new FileInputStream(file2);
+                            monitor = new UploadMonitor(file2.length(), uploadCallBack);
+                            sftpUtil.upload("/usr/local/src/", "SimplePushStreamUtil/", "SimplePushStreamUtil-Server.jar", fis, monitor);
+                            addTextToLog("上传完成，开始配置环境\n");
                             jschUtil.versouSshUtil(serverIp, userName, userPassword, serverPort);
                             jschUtil.runCmd("cd /usr/local/src/SimplePushStreamUtil/ && mv SimplePushStreamUtil-Server.service /etc/systemd/system/", "UTF-8");
                             jschUtil.runCmd("systemctl disable SimplePushStreamUtil-Server.service", "UTF-8");
@@ -324,6 +333,8 @@ public class MainForm extends JFrame {
             }
         }
     }
+
+    private UploadMonitor.UploadCallBack uploadCallBack = this::addTextToLog;
 
     /**
      * 初始化界面
