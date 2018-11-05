@@ -20,12 +20,10 @@ public class ParseMessageUtil {
     public static final int TYPE_TOMYLIVEROOM = 11;
     public static final int TYPE_LIVEROOMISOPEN = 12;
     public static final int TYPE_STOPPUSHSTREAM = 13;
-    private Gson gson;
     private CommandUtil commandUtil;
 
-    public ParseMessageUtil(MainForm mainForm, IoSession session) {
-        gson = new Gson();
-        commandUtil = new CommandUtil(mainForm, session);
+    public ParseMessageUtil(MainForm mainForm) {
+        commandUtil = new CommandUtil(mainForm);
     }
 
     /**

@@ -1,7 +1,6 @@
 package com.dhr.simplepushstreamutil.mina;
 
 
-import com.dhr.simplepushstreamutil.bean.FromClientBean;
 import com.dhr.simplepushstreamutil.bean.FromServerBean;
 import com.dhr.simplepushstreamutil.ui.form.MainForm;
 import com.dhr.simplepushstreamutil.util.ParseMessageUtil;
@@ -18,17 +17,15 @@ import java.util.logging.Logger;
 public class MinaClientHandler extends IoHandlerAdapter {
     private static final Logger LOG = Logger.getLogger("system");
     private ParseMessageUtil parseMessageUtil;
-    private MainForm mainForm;
 
     public MinaClientHandler(MainForm mainForm) {
-        this.mainForm = mainForm;
+        parseMessageUtil = new ParseMessageUtil(mainForm);
     }
 
     // 当客户端连接进入时
     @Override
     public void sessionOpened(IoSession session) throws Exception {
         System.out.println("incomming 客户端: " + session.getRemoteAddress());
-        parseMessageUtil = new ParseMessageUtil(mainForm, session);
     }
 
     @Override

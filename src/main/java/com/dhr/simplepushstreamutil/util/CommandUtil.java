@@ -14,7 +14,7 @@ public class CommandUtil {
     private MainForm mainForm;
     private Gson gson;
 
-    public CommandUtil(MainForm mainForm, IoSession session) {
+    public CommandUtil(MainForm mainForm) {
         this.mainForm = mainForm;
         this.gson = new Gson();
     }
