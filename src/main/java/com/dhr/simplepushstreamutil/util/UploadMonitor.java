@@ -55,7 +55,6 @@ public class UploadMonitor implements SftpProgressMonitor, Runnable {
             createTread();
         }
         uploaded += count;
-        uploadCallBack.uploadLog("本次上传大小：" + count / 1024 + "KB," + "\n");
         if (count > 0) {
             return true;
         }
