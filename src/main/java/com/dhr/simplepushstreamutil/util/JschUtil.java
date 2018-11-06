@@ -1,5 +1,8 @@
 package com.dhr.simplepushstreamutil.util;
 
+import com.dhr.simplepushstreamutil.runnable.InstallFfmpegRunnable;
+import com.dhr.simplepushstreamutil.runnable.InstallStreamlinkRunnable;
+import com.dhr.simplepushstreamutil.runnable.InstallYoutubedlRunnable;
 import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.Session;
@@ -61,6 +64,39 @@ public class JschUtil {
         reader.close();
         channelExec.disconnect();
         return result;
+    }
+
+    public void runCmd(String cmd, InstallFfmpegRunnable.InstallFfmpegCallBack installFfmpegCallBack) throws Exception {
+        channelExec = (ChannelExec) session.openChannel("exec");
+        channelExec.setCommand(cmd);
+        channelExec.setInputStream(null);
+        channelExec.setErrStream(System.err);
+        channelExec.connect();
+
+        new Thread(new InstallFfmpegRunnable(channelExec.getErrStream(), installFfmpegCallBack)).start();
+        new Thread(new InstallFfmpegRunnable(channelExec.getInputStream(), installFfmpegCallBack)).start();
+    }
+
+    public void runCmd(String cmd, InstallStreamlinkRunnable.InstallStreanlinkCallBack installStreanlinkCallBack) throws Exception {
+        channelExec = (ChannelExec) session.openChannel("exec");
+        channelExec.setCommand(cmd);
+        channelExec.setInputStream(null);
+        channelExec.setErrStream(System.err);
+        channelExec.connect();
+
+        new Thread(new InstallStreamlinkRunnable(channelExec.getErrStream(), installStreanlinkCallBack)).start();
+        new Thread(new InstallStreamlinkRunnable(channelExec.getInputStream(), installStreanlinkCallBack)).start();
+    }
+
+    public void runCmd(String cmd, InstallYoutubedlRunnable.InstallYoutubedlCallBack installYoutubedlCallBack) throws Exception {
+        channelExec = (ChannelExec) session.openChannel("exec");
+        channelExec.setCommand(cmd);
+        channelExec.setInputStream(null);
+        channelExec.setErrStream(System.err);
+        channelExec.connect();
+
+        new Thread(new InstallYoutubedlRunnable(channelExec.getErrStream(), installYoutubedlCallBack)).start();
+        new Thread(new InstallYoutubedlRunnable(channelExec.getInputStream(), installYoutubedlCallBack)).start();
     }
 
     public void close() {

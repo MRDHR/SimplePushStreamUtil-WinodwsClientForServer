@@ -20,6 +20,8 @@ echo "youtube-dl下载完毕，开始设置权限"
 chmod a+rx /usr/local/bin/youtube-dl
 echo "权限设置完毕"
 
+echo "youtube-dl安装结束"
+
 exit 0
 
 

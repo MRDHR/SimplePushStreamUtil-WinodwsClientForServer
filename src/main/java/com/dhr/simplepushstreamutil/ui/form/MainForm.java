@@ -3,6 +3,9 @@ package com.dhr.simplepushstreamutil.ui.form;
 import com.dhr.simplepushstreamutil.bean.*;
 import com.dhr.simplepushstreamutil.entity.LiveAreaListEntity;
 import com.dhr.simplepushstreamutil.mina.MinaClient;
+import com.dhr.simplepushstreamutil.runnable.InstallFfmpegRunnable;
+import com.dhr.simplepushstreamutil.runnable.InstallStreamlinkRunnable;
+import com.dhr.simplepushstreamutil.runnable.InstallYoutubedlRunnable;
 import com.dhr.simplepushstreamutil.ui.dialog.*;
 import com.dhr.simplepushstreamutil.util.*;
 import com.google.gson.Gson;
@@ -145,30 +148,20 @@ public class MainForm extends JFrame {
                 serverPort = Integer.parseInt(cacheServerPort);
                 executorService.execute(() -> {
                     try {
-                        jschUtil.versouSshUtil(serverIp, userName, userPassword, serverPort);
-                        List<String> strings = jschUtil.runCmd("yum list installed | grep wget", "UTF-8");
-                        if (null == strings || strings.isEmpty()) {
-                            strings = jschUtil.runCmd("yum -y install wget", "UTF-8");
-                            for (String str : strings) {
-                                addTextToLog(str + "\n");
-                            }
+                        sftpUtil = new SftpUtil(userName, userPassword, serverIp, serverPort);
+                        ChannelSftp login = sftpUtil.login();
+                        if (null != login) {
+                            addTextToLog("登录服务器成功，开始上传ffmpeg安装文件\n");
+                            File file = new File(userDirPath + "\\installffmpeg.sh");
+                            FileInputStream fis = new FileInputStream(file);
+                            UploadMonitor monitor = new UploadMonitor(file.length(), uploadCallBack);
+                            sftpUtil.upload("/usr/local/src/", "SimplePushStreamUtil/", "installffmpeg.sh", fis, monitor);
+                            addTextToLog("开始执行安装文件\n");
+                            jschUtil.versouSshUtil(serverIp, userName, userPassword, serverPort);
+                            jschUtil.runCmd("cd /usr/local/src/SimplePushStreamUtil/ && chmod a+x installffmpeg.sh && ./installffmpeg.sh", installFfmpegCallBack);
+                        } else {
+                            addTextToLog("登录服务器失败");
                         }
-                        addTextToLog("wget部分已完成，开始准备ffmpeg环境" + "\n");
-                        strings = jschUtil.runCmd("wget https://raw.githubusercontent.com/q3aql/ffmpeg-install/master/ffmpeg-install", "UTF-8");
-                        for (String str : strings) {
-                            addTextToLog(str + "\n");
-                        }
-                        addTextToLog("ffmpeg安装脚本下载完毕，开始设置权限" + "\n");
-                        strings = jschUtil.runCmd("chmod a+x ffmpeg-install", "UTF-8");
-                        for (String str : strings) {
-                            addTextToLog(str + "\n");
-                        }
-                        addTextToLog("权限设置完毕，开始执行安装脚本。预计需要5-6分钟" + "\n");
-                        strings = jschUtil.runCmd("./ffmpeg-install --install release", "UTF-8");
-                        for (String str : strings) {
-                            addTextToLog(str + "\n");
-                        }
-                        addTextToLog("ffmpeg安装结束\n");
                     } catch (Exception ex) {
                         ex.printStackTrace();
                         addTextToLog("ffmpeg安装失败\n");
@@ -179,6 +172,15 @@ public class MainForm extends JFrame {
             }
         }
     }
+
+    private InstallFfmpegRunnable.InstallFfmpegCallBack installFfmpegCallBack = log -> {
+        addTextToLog(log + "\n");
+        if (log.contains("ffmpeg安装结束")) {
+            if (null != jschUtil) {
+                jschUtil.close();
+            }
+        }
+    };
 
     private void installYoutubeDl() {
         serverIp = tfServerIp.getText();
@@ -199,26 +201,20 @@ public class MainForm extends JFrame {
                 serverPort = Integer.parseInt(cacheServerPort);
                 executorService.execute(() -> {
                     try {
-                        jschUtil.versouSshUtil(serverIp, userName, userPassword, serverPort);
-                        List<String> strings = jschUtil.runCmd("yum list installed | grep wget", "UTF-8");
-                        if (null == strings || strings.isEmpty()) {
-                            strings = jschUtil.runCmd("yum -y install wget", "UTF-8");
-                            for (String str : strings) {
-                                addTextToLog(str + "\n");
-                            }
+                        sftpUtil = new SftpUtil(userName, userPassword, serverIp, serverPort);
+                        ChannelSftp login = sftpUtil.login();
+                        if (null != login) {
+                            addTextToLog("登录服务器成功，开始上传youtube-dl安装文件\n");
+                            File file = new File(userDirPath + "\\installyoutubedl.sh");
+                            FileInputStream fis = new FileInputStream(file);
+                            UploadMonitor monitor = new UploadMonitor(file.length(), uploadCallBack);
+                            sftpUtil.upload("/usr/local/src/", "SimplePushStreamUtil/", "installyoutubedl.sh", fis, monitor);
+                            addTextToLog("开始执行安装文件\n");
+                            jschUtil.versouSshUtil(serverIp, userName, userPassword, serverPort);
+                            jschUtil.runCmd("cd /usr/local/src/SimplePushStreamUtil/ && chmod a+x installyoutubedl.sh && ./installyoutubedl.sh", installYoutubedlCallBack);
+                        } else {
+                            addTextToLog("登录服务器失败");
                         }
-                        addTextToLog("wget部分已完成，开始准备youtube-dl环境" + "\n");
-                        strings = jschUtil.runCmd("wget https://yt-dl.org/downloads/latest/youtube-dl -O /usr/local/bin/youtube-dl", "UTF-8");
-                        for (String str : strings) {
-                            addTextToLog(str + "\n");
-                        }
-                        addTextToLog("youtube-dl下载完毕，开始设置权限" + "\n");
-                        strings = jschUtil.runCmd("chmod a+rx /usr/local/bin/youtube-dl", "UTF-8");
-                        for (String str : strings) {
-                            addTextToLog(str + "\n");
-                        }
-                        addTextToLog("权限设置完毕" + "\n");
-                        addTextToLog("youtube-dl安装结束\n");
                     } catch (Exception ex) {
                         ex.printStackTrace();
                         addTextToLog("youtube-dl安装失败\n");
@@ -229,6 +225,15 @@ public class MainForm extends JFrame {
             }
         }
     }
+
+    private InstallYoutubedlRunnable.InstallYoutubedlCallBack installYoutubedlCallBack = log -> {
+        addTextToLog(log + "\n");
+        if (log.contains("youtube-dl安装结束")) {
+            if (null != jschUtil) {
+                jschUtil.close();
+            }
+        }
+    };
 
     private void installStreamLink() {
         serverIp = tfServerIp.getText();
@@ -249,30 +254,20 @@ public class MainForm extends JFrame {
                 serverPort = Integer.parseInt(cacheServerPort);
                 executorService.execute(() -> {
                     try {
-                        jschUtil.versouSshUtil(serverIp, userName, userPassword, serverPort);
-                        List<String> strings = jschUtil.runCmd("yum list installed | grep wget", "UTF-8");
-                        if (null == strings || strings.isEmpty()) {
-                            strings = jschUtil.runCmd("yum -y install wget", "UTF-8");
-                            for (String str : strings) {
-                                addTextToLog(str + "\n");
-                            }
+                        sftpUtil = new SftpUtil(userName, userPassword, serverIp, serverPort);
+                        ChannelSftp login = sftpUtil.login();
+                        if (null != login) {
+                            addTextToLog("登录服务器成功，开始上传streamlink安装文件\n");
+                            File file = new File(userDirPath + "\\installstreamlink.sh");
+                            FileInputStream fis = new FileInputStream(file);
+                            UploadMonitor monitor = new UploadMonitor(file.length(), uploadCallBack);
+                            sftpUtil.upload("/usr/local/src/", "SimplePushStreamUtil/", "installstreamlink.sh", fis, monitor);
+                            addTextToLog("开始执行安装文件\n");
+                            jschUtil.versouSshUtil(serverIp, userName, userPassword, serverPort);
+                            jschUtil.runCmd("cd /usr/local/src/SimplePushStreamUtil/ && chmod a+x installstreamlink.sh && ./installstreamlink.sh", installStreanlinkCallBack);
+                        } else {
+                            addTextToLog("登录服务器失败");
                         }
-                        addTextToLog("wget部分已完成，开始下载pip安装脚本" + "\n");
-                        strings = jschUtil.runCmd("wget https://bootstrap.pypa.io/get-pip.py", "UTF-8");
-                        for (String str : strings) {
-                            addTextToLog(str + "\n");
-                        }
-                        addTextToLog("pip安装脚本下载已完成，开始安装python pip环境" + "\n");
-                        strings = jschUtil.runCmd("python get-pip.py", "UTF-8");
-                        for (String str : strings) {
-                            addTextToLog(str + "\n");
-                        }
-                        addTextToLog("python pip环境安装完成，开始安装streamlink环境" + "\n");
-                        strings = jschUtil.runCmd("pip install streamlink", "UTF-8");
-                        for (String str : strings) {
-                            addTextToLog(str + "\n");
-                        }
-                        addTextToLog("streamlink安装结束\n");
                     } catch (Exception ex) {
                         ex.printStackTrace();
                         addTextToLog("streamlink安装失败\n");
@@ -283,6 +278,15 @@ public class MainForm extends JFrame {
             }
         }
     }
+
+    private InstallStreamlinkRunnable.InstallStreanlinkCallBack installStreanlinkCallBack = log -> {
+        addTextToLog(log + "\n");
+        if (log.contains("streamlink安装结束")) {
+            if (null != jschUtil) {
+                jschUtil.close();
+            }
+        }
+    };
 
     private void installServer() {
         serverIp = tfServerIp.getText();
@@ -352,8 +356,11 @@ public class MainForm extends JFrame {
         btnConnect.addActionListener(e -> serverConnect());
 
         btnDisconnect.addActionListener(e -> {
-            if (null != minaClient) {
+            if (null == minaClient) {
+                showTipsDialog("请先连接服务器后再进行操作");
+            } else {
                 minaClient.close();
+                addTextToLog("断开连接");
             }
         });
 
@@ -373,7 +380,7 @@ public class MainForm extends JFrame {
 
         btnPushStream.addActionListener(e -> pushStreamPerformed());
 
-        btnStopStream.addActionListener(e -> stopStream());
+        btnStopStream.addActionListener(e -> stopPushStream());
 
         btnOpenLiveRoom.addActionListener(e -> openLiveRoom());
 
@@ -439,13 +446,6 @@ public class MainForm extends JFrame {
                 showTipsDialog("您输入的端口号有误，请检查后重试！（端口号均为整数数字）");
             }
         }
-    }
-
-    /**
-     * 停止推流
-     */
-    private void stopStream() {
-        stopPushStreamInLinux();
     }
 
     /**
@@ -516,9 +516,13 @@ public class MainForm extends JFrame {
      */
     private void pushStreamPerformed() {
         if (rbGetLiveRoomUrl.isSelected()) {
-            FromClientBean fromClientBean = new FromClientBean();
-            fromClientBean.setType(ParseMessageUtil.TYPE_LIVEROOMISOPEN);
-            minaClient.send(fromClientBean);
+            if (null == minaClient) {
+                showTipsDialog("请先连接服务器后再进行操作");
+            } else {
+                FromClientBean fromClientBean = new FromClientBean();
+                fromClientBean.setType(ParseMessageUtil.TYPE_LIVEROOMISOPEN);
+                minaClient.send(fromClientBean);
+            }
         } else {
             //手动填写直播间地址
             liveRoomUrl = taLiveRoomUrl.getText();
@@ -543,9 +547,13 @@ public class MainForm extends JFrame {
      * 通过B站账号信息获取推流地址
      */
     private void openLiveRoom() {
-        FromClientBean fromClientBean = new FromClientBean();
-        fromClientBean.setType(ParseMessageUtil.TYPE_OPENLIVEROOM);
-        minaClient.send(fromClientBean);
+        if (null == minaClient) {
+            showTipsDialog("请先连接服务器后再进行操作");
+        } else {
+            FromClientBean fromClientBean = new FromClientBean();
+            fromClientBean.setType(ParseMessageUtil.TYPE_OPENLIVEROOM);
+            minaClient.send(fromClientBean);
+        }
     }
 
     public void openLiveRoomFail(String result) {
@@ -571,13 +579,17 @@ public class MainForm extends JFrame {
      * @param areaId
      */
     private void updateTitleAndOpenLiveRoom(String roomName, String areaId) {
-        executorService.execute(() -> {
-            FromClientBean fromClientBean = new FromClientBean();
-            fromClientBean.setType(ParseMessageUtil.TYPE_UPDATETITLEANDOPENLIVEROOM);
-            fromClientBean.setAreaId(areaId);
-            fromClientBean.setRoomName(roomName);
-            minaClient.send(fromClientBean);
-        });
+        if (null == minaClient) {
+            showTipsDialog("请先连接服务器后再进行操作");
+        } else {
+            executorService.execute(() -> {
+                FromClientBean fromClientBean = new FromClientBean();
+                fromClientBean.setType(ParseMessageUtil.TYPE_UPDATETITLEANDOPENLIVEROOM);
+                fromClientBean.setAreaId(areaId);
+                fromClientBean.setRoomName(roomName);
+                minaClient.send(fromClientBean);
+            });
+        }
     }
 
     public void updateTitleAndOpenLiveRoomSuccess(String result) {
@@ -594,11 +606,15 @@ public class MainForm extends JFrame {
      * 关闭直播间
      */
     private void closeLiveRoom() {
-        executorService.execute(() -> {
-            FromClientBean fromClientBean = new FromClientBean();
-            fromClientBean.setType(ParseMessageUtil.TYPE_CLOSELIVEROOM);
-            minaClient.send(fromClientBean);
-        });
+        if (null == minaClient) {
+            showTipsDialog("请先连接服务器后再进行操作");
+        } else {
+            executorService.execute(() -> {
+                FromClientBean fromClientBean = new FromClientBean();
+                fromClientBean.setType(ParseMessageUtil.TYPE_CLOSELIVEROOM);
+                minaClient.send(fromClientBean);
+            });
+        }
     }
 
     public void closeLiveRoomSuccess(String result) {
@@ -615,9 +631,13 @@ public class MainForm extends JFrame {
      * 打开我的直播间
      */
     private void toMyLIveRoom() {
-        FromClientBean fromClientBean = new FromClientBean();
-        fromClientBean.setType(ParseMessageUtil.TYPE_TOMYLIVEROOM);
-        minaClient.send(fromClientBean);
+        if (null == minaClient) {
+            showTipsDialog("请先连接服务器后再进行操作");
+        } else {
+            FromClientBean fromClientBean = new FromClientBean();
+            fromClientBean.setType(ParseMessageUtil.TYPE_TOMYLIVEROOM);
+            minaClient.send(fromClientBean);
+        }
     }
 
     public void toMyLIveRoomSuccess(String site) {
@@ -636,31 +656,6 @@ public class MainForm extends JFrame {
     public void toMyLIveRoomFail(String result) {
         addTextToLog(result);
     }
-
-//    /**
-//     * 显示隐藏直播间操作面板
-//     */
-//    public void showOrHideLiveRoomControlPanel() {
-//        BilibiliAccount bilibiliAccount = localDataBean.getBilibiliAccount();
-//        if (0 == controlPanelHeight) {
-//            controlPanelHeight = controlPanel.getPreferredSize().height;
-//        }
-//        int liveRoomControlPanelHeight = liveRoomControlPanel.getPreferredSize().height;
-//        if (null == bilibiliAccount || null == bilibiliAccount.getAccessToken() || bilibiliAccount.getAccessToken().isEmpty()) {
-//            if (liveRoomControlPanel.isVisible()) {
-//                liveRoomControlPanel.setVisible(false);
-//                controlPanel.setPreferredSize(new Dimension(0, controlPanelHeight - liveRoomControlPanelHeight));
-//                controlPanel.setSize(0, controlPanelHeight - liveRoomControlPanelHeight);
-//            }
-//        } else {
-//            if (!liveRoomControlPanel.isVisible()) {
-//                liveRoomControlPanel.setVisible(true);
-//                controlPanel.setPreferredSize(new Dimension(0, controlPanelHeight + liveRoomControlPanelHeight));
-//                controlPanel.setSize(0, controlPanelHeight + liveRoomControlPanelHeight);
-//            }
-//        }
-//        controlPanelHeight = controlPanel.getPreferredSize().height;
-//    }
 
     /**
      * 单选按钮选中状态变化监听
@@ -868,27 +863,31 @@ public class MainForm extends JFrame {
      * linux服务器环境获取分辨率列表
      */
     private void getFormatListInLinux() {
-        executorService.execute(() -> {
-            taLog.setText("开始获取分辨率列表");
-            try {
-                String cmd = "";
-                switch (localDataBean.getConfigSchemeBean().getSchemeType()) {
-                    case 0:
-                        cmd = "youtube-dl --list-formats " + resourceUrl;
-                        break;
-                    case 1:
-                        cmd = "streamlink " + resourceUrl;
-                        break;
+        if (null == minaClient) {
+            showTipsDialog("请先连接服务器后再进行操作");
+        } else {
+            executorService.execute(() -> {
+                taLog.setText("开始获取分辨率列表");
+                try {
+                    String cmd = "";
+                    switch (localDataBean.getConfigSchemeBean().getSchemeType()) {
+                        case 0:
+                            cmd = "youtube-dl --list-formats " + resourceUrl;
+                            break;
+                        case 1:
+                            cmd = "streamlink " + resourceUrl;
+                            break;
+                    }
+                    FromClientBean fromClientBean = new FromClientBean();
+                    fromClientBean.setSchemeType(localDataBean.getConfigSchemeBean().getSchemeType());
+                    fromClientBean.setType(ParseMessageUtil.TYPE_GETFORMATLIST);
+                    fromClientBean.setCmd(cmd);
+                    minaClient.send(fromClientBean);
+                } catch (Exception ex) {
+                    ex.printStackTrace();
                 }
-                FromClientBean fromClientBean = new FromClientBean();
-                fromClientBean.setSchemeType(localDataBean.getConfigSchemeBean().getSchemeType());
-                fromClientBean.setType(ParseMessageUtil.TYPE_GETFORMATLIST);
-                fromClientBean.setCmd(cmd);
-                minaClient.send(fromClientBean);
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-        });
+            });
+        }
     }
 
     public void getFormatListSuccess(List<ResolutionBean> listResolutions) {
@@ -941,36 +940,40 @@ public class MainForm extends JFrame {
      * linux平台推流
      */
     private void pushStreamToLiveRoomInLinux() {
-        executorService.execute(() -> {
-            try {
-                addTextToLog("\n\n开始组装推流参数即将开始推流，请稍候...");
-                String videoParams = null;
-                String cache;
-                if (rbBoth.isSelected()) {
-                    videoParams = " -c:v copy -c:a aac -strict -2 -f flv ";
-                } else if (rbOnlyAudio.isSelected()) {
-                    videoParams = " -vn -c:a aac -strict -2  -f flv ";
-                } else if (rbOnlyImage.isSelected()) {
-                    videoParams = " -c:v copy -an -strict -2  -f flv ";
-                }
-                if (0 == localDataBean.getConfigSchemeBean().getSchemeType()) {
-                    cache = "ffmpeg -thread_queue_size 1024 -i " + m3u8Url + videoParams + "\"" + liveRoomUrl + "\"";
-                } else {
-                    String resolutionPx = listResolutions.get(cbFormatList.getSelectedIndex()).getResolutionPx();
-                    if (resolutionPx.contains("(")) {
-                        resolutionPx = resolutionPx.substring(0, resolutionPx.lastIndexOf("("));
+        if (null == minaClient) {
+            showTipsDialog("请先连接服务器后再进行操作");
+        } else {
+            executorService.execute(() -> {
+                try {
+                    addTextToLog("\n\n开始组装推流参数即将开始推流，请稍候...");
+                    String videoParams = null;
+                    String cache;
+                    if (rbBoth.isSelected()) {
+                        videoParams = " -c:v copy -c:a aac -strict -2 -f flv ";
+                    } else if (rbOnlyAudio.isSelected()) {
+                        videoParams = " -vn -c:a aac -strict -2  -f flv ";
+                    } else if (rbOnlyImage.isSelected()) {
+                        videoParams = " -c:v copy -an -strict -2  -f flv ";
                     }
-                    cache = "streamlink -O " + resourceUrl + " " + resolutionPx + " | ffmpeg -thread_queue_size 1024 -i pipe:0 " + videoParams + "\"" + liveRoomUrl + "\"";
+                    if (0 == localDataBean.getConfigSchemeBean().getSchemeType()) {
+                        cache = "ffmpeg -thread_queue_size 1024 -i " + m3u8Url + videoParams + "\"" + liveRoomUrl + "\"";
+                    } else {
+                        String resolutionPx = listResolutions.get(cbFormatList.getSelectedIndex()).getResolutionPx();
+                        if (resolutionPx.contains("(")) {
+                            resolutionPx = resolutionPx.substring(0, resolutionPx.lastIndexOf("("));
+                        }
+                        cache = "streamlink -O " + resourceUrl + " " + resolutionPx + " | ffmpeg -thread_queue_size 1024 -i pipe:0 " + videoParams + "\"" + liveRoomUrl + "\"";
+                    }
+                    System.out.println(cache);
+                    FromClientBean fromClientBean = new FromClientBean();
+                    fromClientBean.setType(ParseMessageUtil.TYPE_PUSHSTREAMTOLIVEROOM);
+                    fromClientBean.setCmd(cache);
+                    minaClient.send(fromClientBean);
+                } catch (Exception ex) {
+                    ex.printStackTrace();
                 }
-                System.out.println(cache);
-                FromClientBean fromClientBean = new FromClientBean();
-                fromClientBean.setType(ParseMessageUtil.TYPE_PUSHSTREAMTOLIVEROOM);
-                fromClientBean.setCmd(cache);
-                minaClient.send(fromClientBean);
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-        });
+            });
+        }
     }
 
     public void pushStreamToLiveRoomSuccess(String log) {
@@ -993,29 +996,33 @@ public class MainForm extends JFrame {
      * linux平台的获取m3u8地址
      */
     private void getM3u8UrlInLinux() {
-        executorService.execute(() -> {
-            addTextToLog("\n\n开始获取直播源，请稍候...");
-            try {
-                String cmd;
-                if (0 == localDataBean.getConfigSchemeBean().getSchemeType()) {
-                    String resolutionNo = listResolutions.get(cbFormatList.getSelectedIndex()).getResolutionNo();
-                    //通过youtube-dl获取m3u8地址
-                    cmd = "youtube-dl -f " + resolutionNo + " -g " + resourceUrl;
-                } else {
-                    String resolutionPx = listResolutions.get(cbFormatList.getSelectedIndex()).getResolutionPx();
-                    if (resolutionPx.contains("(")) {
-                        resolutionPx = resolutionPx.substring(0, resolutionPx.lastIndexOf("("));
+        if (null == minaClient) {
+            showTipsDialog("请先连接服务器后再进行操作");
+        } else {
+            executorService.execute(() -> {
+                addTextToLog("\n\n开始获取直播源，请稍候...");
+                try {
+                    String cmd;
+                    if (0 == localDataBean.getConfigSchemeBean().getSchemeType()) {
+                        String resolutionNo = listResolutions.get(cbFormatList.getSelectedIndex()).getResolutionNo();
+                        //通过youtube-dl获取m3u8地址
+                        cmd = "youtube-dl -f " + resolutionNo + " -g " + resourceUrl;
+                    } else {
+                        String resolutionPx = listResolutions.get(cbFormatList.getSelectedIndex()).getResolutionPx();
+                        if (resolutionPx.contains("(")) {
+                            resolutionPx = resolutionPx.substring(0, resolutionPx.lastIndexOf("("));
+                        }
+                        cmd = "streamlink --stream-url " + resourceUrl + " " + resolutionPx;
                     }
-                    cmd = "streamlink --stream-url " + resourceUrl + " " + resolutionPx;
+                    FromClientBean fromClientBean = new FromClientBean();
+                    fromClientBean.setType(ParseMessageUtil.TYPE_GETM3U8);
+                    fromClientBean.setCmd(cmd);
+                    minaClient.send(fromClientBean);
+                } catch (Exception ex) {
+                    ex.printStackTrace();
                 }
-                FromClientBean fromClientBean = new FromClientBean();
-                fromClientBean.setType(ParseMessageUtil.TYPE_GETM3U8);
-                fromClientBean.setCmd(cmd);
-                minaClient.send(fromClientBean);
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-        });
+            });
+        }
     }
 
     public void getM3u8UrlSuccess(String m3u8Url) {
@@ -1031,13 +1038,16 @@ public class MainForm extends JFrame {
     /**
      * linux平台的停止推流
      */
-    private void stopPushStreamInLinux() {
-        executorService.execute(() -> {
-            FromClientBean fromClientBean = new FromClientBean();
-            fromClientBean.setType(ParseMessageUtil.TYPE_STOPPUSHSTREAM);
-            fromClientBean.setCmd("ps -aux|grep " + "\"" + liveRoomUrl + "\"" + "| grep -v grep | awk '{print $2}'");
-            minaClient.send(fromClientBean);
-        });
+    private void stopPushStream() {
+        if (null == minaClient) {
+            showTipsDialog("请先连接服务器后再进行操作");
+        } else {
+            executorService.execute(() -> {
+                FromClientBean fromClientBean = new FromClientBean();
+                fromClientBean.setType(ParseMessageUtil.TYPE_STOPPUSHSTREAM);
+                minaClient.send(fromClientBean);
+            });
+        }
     }
 
     public void stopPushStreamSuccess(String result) {

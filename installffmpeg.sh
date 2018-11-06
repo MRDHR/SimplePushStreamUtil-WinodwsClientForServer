@@ -21,6 +21,9 @@ chmod a+x ffmpeg-install
 echo "权限设置完毕，开始执行安装脚本。预计需要5-6分钟"
 
 ./ffmpeg-install --install release
+
+echo "ffmpeg安装结束"
+
 exit 0
 
 

@@ -22,6 +22,8 @@ echo "python pip环境安装完成，开始安装streamlink环境"
 
 pip install streamlink
 
+echo "streamlink安装结束"
+
 exit 0
 
 
