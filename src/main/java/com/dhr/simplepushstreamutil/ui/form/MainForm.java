@@ -61,8 +61,6 @@ public class MainForm extends JFrame {
     private JschUtil jschUtil = new JschUtil();
     private SftpUtil sftpUtil;
     private String userDirPath = new File(System.getProperty("user.dir")).getPath();
-    private File file1 = new File(userDirPath + "\\SimplePushStreamUtil-Server.service");
-    private File file2 = new File(userDirPath + "\\SimplePushStreamUtil-Server.jar");
 
     public static void main(String[] args) {
         try {
@@ -152,7 +150,7 @@ public class MainForm extends JFrame {
                         ChannelSftp login = sftpUtil.login();
                         if (null != login) {
                             addTextToLog("登录服务器成功，开始上传ffmpeg安装文件\n");
-                            File file = new File(userDirPath + "\\installffmpeg.sh");
+                            File file = new File(userDirPath + "\\环境相关\\installffmpeg.sh");
                             FileInputStream fis = new FileInputStream(file);
                             UploadMonitor monitor = new UploadMonitor(file.length(), uploadCallBack);
                             sftpUtil.upload("/usr/local/src/", "SimplePushStreamUtil/", "installffmpeg.sh", fis, monitor);
@@ -205,7 +203,7 @@ public class MainForm extends JFrame {
                         ChannelSftp login = sftpUtil.login();
                         if (null != login) {
                             addTextToLog("登录服务器成功，开始上传youtube-dl安装文件\n");
-                            File file = new File(userDirPath + "\\installyoutubedl.sh");
+                            File file = new File(userDirPath + "\\环境相关\\installyoutubedl.sh");
                             FileInputStream fis = new FileInputStream(file);
                             UploadMonitor monitor = new UploadMonitor(file.length(), uploadCallBack);
                             sftpUtil.upload("/usr/local/src/", "SimplePushStreamUtil/", "installyoutubedl.sh", fis, monitor);
@@ -258,7 +256,7 @@ public class MainForm extends JFrame {
                         ChannelSftp login = sftpUtil.login();
                         if (null != login) {
                             addTextToLog("登录服务器成功，开始上传streamlink安装文件\n");
-                            File file = new File(userDirPath + "\\installstreamlink.sh");
+                            File file = new File(userDirPath + "\\环境相关\\installstreamlink.sh");
                             FileInputStream fis = new FileInputStream(file);
                             UploadMonitor monitor = new UploadMonitor(file.length(), uploadCallBack);
                             sftpUtil.upload("/usr/local/src/", "SimplePushStreamUtil/", "installstreamlink.sh", fis, monitor);
@@ -311,19 +309,23 @@ public class MainForm extends JFrame {
                         ChannelSftp login = sftpUtil.login();
                         if (null != login) {
                             addTextToLog("登录服务器成功，开始上传linux服务文件\n");
-                            FileInputStream fis = new FileInputStream(file1);
-                            UploadMonitor monitor = new UploadMonitor(file1.length(), uploadCallBack);
+                            File file = new File(userDirPath + "\\环境相关\\SimplePushStreamUtil-Server.service");
+                            FileInputStream fis = new FileInputStream(file);
+                            UploadMonitor monitor = new UploadMonitor(file.length(), uploadCallBack);
                             sftpUtil.upload("/usr/local/src/", "SimplePushStreamUtil/", "SimplePushStreamUtil-Server.service", fis, monitor);
                             addTextToLog("第一个文件上传成功，开始上传jar包（时间比较久）\n");
-                            fis = new FileInputStream(file2);
-                            monitor = new UploadMonitor(file2.length(), uploadCallBack);
+                            file = new File(userDirPath + "\\环境相关\\SimplePushStreamUtil-Server.jar");
+                            fis = new FileInputStream(file);
+                            monitor = new UploadMonitor(file.length(), uploadCallBack);
                             sftpUtil.upload("/usr/local/src/", "SimplePushStreamUtil/", "SimplePushStreamUtil-Server.jar", fis, monitor);
+                            addTextToLog("上传服务完成，开始上传安装脚本\n");
+                            file = new File(userDirPath + "\\环境相关\\installserver.sh");
+                            fis = new FileInputStream(file);
+                            monitor = new UploadMonitor(file.length(), uploadCallBack);
+                            sftpUtil.upload("/usr/local/src/", "SimplePushStreamUtil/", "installserver.sh", fis, monitor);
                             addTextToLog("上传完成，开始配置环境\n");
                             jschUtil.versouSshUtil(serverIp, userName, userPassword, serverPort);
-                            jschUtil.runCmd("cd /usr/local/src/SimplePushStreamUtil/ && mv SimplePushStreamUtil-Server.service /etc/systemd/system/", "UTF-8");
-                            jschUtil.runCmd("systemctl disable SimplePushStreamUtil-Server.service", "UTF-8");
-                            jschUtil.runCmd("systemctl enable SimplePushStreamUtil-Server.service", "UTF-8");
-                            jschUtil.runCmd("systemctl start SimplePushStreamUtil-Server.service", "UTF-8");
+                            jschUtil.runCmd("cd /usr/local/src/SimplePushStreamUtil/ && chmod a+x installserver.sh && ./installserver.sh", "UTF-8");
                             addTextToLog("开启服务成功");
                         } else {
                             addTextToLog("登录服务器失败");
@@ -360,7 +362,7 @@ public class MainForm extends JFrame {
                 showTipsDialog("请先连接服务器后再进行操作");
             } else {
                 minaClient.close();
-                addTextToLog("断开连接");
+                addTextToLog("\n断开连接");
             }
         });
 
