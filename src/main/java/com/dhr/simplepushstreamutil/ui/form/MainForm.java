@@ -347,8 +347,6 @@ public class MainForm extends JFrame {
      */
     private void initView() {
         rbBoth.setSelected(true);
-        btnCloseLiveRoom.setEnabled(false);
-        btnToMyLiveRoom.setEnabled(false);
 
         rbInputLiveRoomUrl.setSelected(true);
         rbInputLiveRoomUrl.addItemListener(itemListener);
@@ -429,7 +427,7 @@ public class MainForm extends JFrame {
         } else if (null == userPassword || userPassword.isEmpty()) {
             showTipsDialog("用户密码不能为空");
         } else {
-            taLog.setText("开始测试连接服务器");
+            taLog.setText("开始连接服务器");
             try {
                 if (null == minaClient) {
                     minaClient = new MinaClient(this, serverIp);
@@ -521,9 +519,11 @@ public class MainForm extends JFrame {
             if (null == minaClient) {
                 showTipsDialog("请先连接服务器后再进行操作");
             } else {
-                FromClientBean fromClientBean = new FromClientBean();
-                fromClientBean.setType(ParseMessageUtil.TYPE_LIVEROOMISOPEN);
-                minaClient.send(fromClientBean);
+                executorService.execute(() -> {
+                    FromClientBean fromClientBean = new FromClientBean();
+                    fromClientBean.setType(ParseMessageUtil.TYPE_LIVEROOMISOPEN);
+                    minaClient.send(fromClientBean);
+                });
             }
         } else {
             //手动填写直播间地址
@@ -552,9 +552,11 @@ public class MainForm extends JFrame {
         if (null == minaClient) {
             showTipsDialog("请先连接服务器后再进行操作");
         } else {
-            FromClientBean fromClientBean = new FromClientBean();
-            fromClientBean.setType(ParseMessageUtil.TYPE_OPENLIVEROOM);
-            minaClient.send(fromClientBean);
+            executorService.execute(() -> {
+                FromClientBean fromClientBean = new FromClientBean();
+                fromClientBean.setType(ParseMessageUtil.TYPE_OPENLIVEROOM);
+                minaClient.send(fromClientBean);
+            });
         }
     }
 
@@ -596,8 +598,6 @@ public class MainForm extends JFrame {
 
     public void updateTitleAndOpenLiveRoomSuccess(String result) {
         addTextToLog(result);
-        btnCloseLiveRoom.setEnabled(true);
-        btnToMyLiveRoom.setEnabled(true);
     }
 
     public void updateTitleAndOpenLiveRoomFail(String result) {
@@ -621,8 +621,6 @@ public class MainForm extends JFrame {
 
     public void closeLiveRoomSuccess(String result) {
         addTextToLog(result);
-        btnCloseLiveRoom.setEnabled(false);
-        btnToMyLiveRoom.setEnabled(false);
     }
 
     public void closeLiveRoomFail(String result) {
@@ -957,6 +955,9 @@ public class MainForm extends JFrame {
                     } else if (rbOnlyImage.isSelected()) {
                         videoParams = " -c:v copy -an -strict -2  -f flv ";
                     }
+                    if (cbTwoInOne.isSelected()) {
+                        videoParams = " -ac 1 " + videoParams;
+                    }
                     if (0 == localDataBean.getConfigSchemeBean().getSchemeType()) {
                         cache = "ffmpeg -thread_queue_size 1024 -i " + m3u8Url + videoParams + "\"" + liveRoomUrl + "\"";
                     } else {
@@ -1123,4 +1124,5 @@ public class MainForm extends JFrame {
     private JButton btnDisconnect;
     private JPanel serverInfoPanel;
     private JPanel liveRoomControlPanel;
+    private JCheckBox cbTwoInOne;
 }

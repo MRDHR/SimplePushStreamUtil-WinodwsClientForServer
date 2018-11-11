@@ -105,13 +105,15 @@ public class BiliBiliAccountDialog extends JDialog {
     }
 
     private void saveLoginInfo() {
-        if (null == mainForm.getMinaClient()) {
-            loginFail("请先连接服务器后再进行操作");
-        } else {
-            FromClientBean fromClientBean = new FromClientBean();
-            fromClientBean.setType(ParseMessageUtil.TYPE_SAVELOGININFO);
-            mainForm.getMinaClient().send(fromClientBean);
-        }
+        executorService.execute(() -> {
+            if (null == mainForm.getMinaClient()) {
+                loginFail("请先连接服务器后再进行操作");
+            } else {
+                FromClientBean fromClientBean = new FromClientBean();
+                fromClientBean.setType(ParseMessageUtil.TYPE_SAVELOGININFO);
+                mainForm.getMinaClient().send(fromClientBean);
+            }
+        });
     }
 
     public void saveLoginInfoSuccess(String result) {
@@ -131,13 +133,15 @@ public class BiliBiliAccountDialog extends JDialog {
     }
 
     private void removeLoginInfo() {
-        if (null == mainForm.getMinaClient()) {
-            loginFail("请先连接服务器后再进行操作");
-        } else {
-            FromClientBean fromClientBean = new FromClientBean();
-            fromClientBean.setType(ParseMessageUtil.TYPE_REMOVELOGININFO);
-            mainForm.getMinaClient().send(fromClientBean);
-        }
+        executorService.execute(() -> {
+            if (null == mainForm.getMinaClient()) {
+                loginFail("请先连接服务器后再进行操作");
+            } else {
+                FromClientBean fromClientBean = new FromClientBean();
+                fromClientBean.setType(ParseMessageUtil.TYPE_REMOVELOGININFO);
+                mainForm.getMinaClient().send(fromClientBean);
+            }
+        });
     }
 
     public void removeLoginInfoSuccess(String result) {
