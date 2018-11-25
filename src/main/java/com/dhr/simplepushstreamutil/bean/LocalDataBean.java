@@ -7,6 +7,7 @@ public class LocalDataBean {
     private List<SourceUrlInfoBean> sourceUrlInfoBeans;
     private List<ServerInfoBean> serverInfoBeans;
     private List<LiveRoomUrlInfoBean> liveRoomUrlInfoBeans;
+    private ConfigQuicklyPushBean configQuicklyPushBean;
 
     public ConfigSchemeBean getConfigSchemeBean() {
         return configSchemeBean;
@@ -40,4 +41,11 @@ public class LocalDataBean {
         this.liveRoomUrlInfoBeans = liveRoomUrlInfoBeans;
     }
 
+    public ConfigQuicklyPushBean getConfigQuicklyPushBean() {
+        return configQuicklyPushBean;
+    }
+
+    public void setConfigQuicklyPushBean(ConfigQuicklyPushBean configQuicklyPushBean) {
+        this.configQuicklyPushBean = configQuicklyPushBean;
+    }
 }
