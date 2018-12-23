@@ -24,8 +24,11 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -158,6 +161,8 @@ public class MainForm extends JFrame {
                         sftpUtil = new SftpUtil(userName, userPassword, serverIp, serverPort);
                         ChannelSftp login = sftpUtil.login();
                         if (null != login) {
+                            jschUtil.versouSshUtil(serverIp, userName, userPassword, serverPort);
+                            jschUtil.runCmd("mkdir -p /usr/local/src/SimplePushStreamUtil/", "UTF-8");
                             addTextToLog("登录服务器成功，开始上传ffmpeg安装文件\n");
                             File file = new File(userDirPath + "\\环境相关\\installffmpeg.sh");
                             FileInputStream fis = new FileInputStream(file);
@@ -211,6 +216,8 @@ public class MainForm extends JFrame {
                         sftpUtil = new SftpUtil(userName, userPassword, serverIp, serverPort);
                         ChannelSftp login = sftpUtil.login();
                         if (null != login) {
+                            jschUtil.versouSshUtil(serverIp, userName, userPassword, serverPort);
+                            jschUtil.runCmd("mkdir -p /usr/local/src/SimplePushStreamUtil/", "UTF-8");
                             addTextToLog("登录服务器成功，开始上传youtube-dl安装文件\n");
                             File file = new File(userDirPath + "\\环境相关\\installyoutubedl.sh");
                             FileInputStream fis = new FileInputStream(file);
@@ -264,6 +271,8 @@ public class MainForm extends JFrame {
                         sftpUtil = new SftpUtil(userName, userPassword, serverIp, serverPort);
                         ChannelSftp login = sftpUtil.login();
                         if (null != login) {
+                            jschUtil.versouSshUtil(serverIp, userName, userPassword, serverPort);
+                            jschUtil.runCmd("mkdir -p /usr/local/src/SimplePushStreamUtil/", "UTF-8");
                             addTextToLog("登录服务器成功，开始上传streamlink安装文件\n");
                             File file = new File(userDirPath + "\\环境相关\\installstreamlink.sh");
                             FileInputStream fis = new FileInputStream(file);
@@ -318,6 +327,11 @@ public class MainForm extends JFrame {
                         ChannelSftp login = sftpUtil.login();
                         if (null != login) {
                             addTextToLog("登录服务器成功，开始上传linux服务文件\n");
+                            jschUtil.versouSshUtil(serverIp, userName, userPassword, serverPort);
+                            jschUtil.runCmd("mkdir -p /usr/local/src/SimplePushStreamUtil/", "UTF-8");
+                            jschUtil.runCmd("cd /usr/local/src/SimplePushStreamUtil/ && systemctl disable SimplePushStreamUtil-Server.service && systemctl stop SimplePushStreamUtil-Server.service ", "UTF-8");
+                            jschUtil.runCmd("cd /usr/local/src/SimplePushStreamUtil/ && rm installserver.sh -y && rm SimplePushStreamUtil-Server.service -y && rm SimplePushStreamUtil-Server.jar -y", "UTF-8");
+
                             File file = new File(userDirPath + "\\环境相关\\SimplePushStreamUtil-Server.service");
                             FileInputStream fis = new FileInputStream(file);
                             UploadMonitor monitor = new UploadMonitor(file.length(), uploadCallBack);
@@ -588,7 +602,7 @@ public class MainForm extends JFrame {
     }
 
     public void getAreaListSuccess(List<LiveAreaListEntity> resolutionBeans) {
-        if(null==areaSettingDialog){
+        if (null == areaSettingDialog) {
             areaSettingDialog = new AreaSettingDialog(this::updateTitleAndOpenLiveRoom);
         }
         areaSettingDialog.setData(resolutionBeans);
@@ -1022,7 +1036,7 @@ public class MainForm extends JFrame {
                         videoParams = " -ac 1 " + videoParams;
                     }
                     if (0 == localDataBean.getConfigSchemeBean().getSchemeType()) {
-                        cache = "ffmpeg -thread_queue_size 1024 -i " + m3u8Url + videoParams + "\"" + liveRoomUrl + "\"";
+                        cache = "ffmpeg -i " + m3u8Url + videoParams + "\"" + liveRoomUrl + "\"";
                     } else {
                         String resolutionPx = "";
                         if (isQuickly) {
@@ -1063,7 +1077,12 @@ public class MainForm extends JFrame {
                                 resolutionPx = resolutionPx.substring(0, resolutionPx.lastIndexOf("("));
                             }
                         }
-                        cache = "streamlink -O " + resourceUrl + " " + resolutionPx + " | ffmpeg -thread_queue_size 1024 -i pipe:0 " + videoParams + "\"" + liveRoomUrl + "\"";
+                        cache = "streamlink -O " + resourceUrl + " " + resolutionPx + " | ffmpeg -i pipe:0 " + videoParams + "\"" + liveRoomUrl + "\"";
+                    }
+                    if (cbRecord.isSelected()) {
+                        SimpleDateFormat df1 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.CHINA);
+                        String date = df1.format(new Date());
+                        cache += " -c:v copy -c:a aac -vbsf h264_mp4toannexb \"" + "/root/spsu_" + date + ".mp4\"";
                     }
                     System.out.println(cache);
                     FromClientBean fromClientBean = new FromClientBean();
@@ -1299,4 +1318,6 @@ public class MainForm extends JFrame {
     private JPanel liveRoomControlPanel;
     private JCheckBox cbTwoInOne;
     private JButton btnQuickly;
+    private JCheckBox cbRecord;
+    private JRadioButton rbRecord;
 }

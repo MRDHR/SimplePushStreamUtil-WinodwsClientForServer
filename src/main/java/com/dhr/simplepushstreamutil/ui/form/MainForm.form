@@ -625,12 +625,6 @@
                           <gridbag weightx="0.0" weighty="0.0"/>
                         </constraints>
                       </hspacer>
-                      <hspacer id="58211">
-                        <constraints>
-                          <grid row="1" column="8" row-span="1" col-span="1" vsize-policy="1" hsize-policy="6" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
-                          <gridbag weightx="1.0" weighty="0.0"/>
-                        </constraints>
-                      </hspacer>
                       <component id="52a7" class="javax.swing.JCheckBox" binding="cbTwoInOne">
                         <constraints>
                           <grid row="1" column="7" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
@@ -659,6 +653,21 @@
                           <gridbag weightx="0.0" weighty="1.0"/>
                         </constraints>
                       </vspacer>
+                      <hspacer id="5192c">
+                        <constraints>
+                          <grid row="1" column="9" row-span="1" col-span="1" vsize-policy="1" hsize-policy="6" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+                          <gridbag weightx="0.0" weighty="0.0"/>
+                        </constraints>
+                      </hspacer>
+                      <component id="ea9fe" class="javax.swing.JCheckBox" binding="cbRecord">
+                        <constraints>
+                          <grid row="1" column="8" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+                          <gridbag weightx="0.0" weighty="0.0"/>
+                        </constraints>
+                        <properties>
+                          <text value="录像"/>
+                        </properties>
+                      </component>
                     </children>
                   </grid>
                   <grid id="cb4b" binding="liveRoomControlPanel" layout-manager="GridBagLayout">

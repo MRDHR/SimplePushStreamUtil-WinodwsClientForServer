@@ -62,7 +62,16 @@ public class SourceUrlInfoDialog extends JDialog {
         btnRemove.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                remove();
+                int result = JOptionPane.showConfirmDialog(SourceUrlInfoDialog.this, "是否删除该条数据？", "温馨提示", JOptionPane.YES_NO_OPTION);
+                switch (result) {
+                    case 0:
+                        //是
+                        remove();
+                        break;
+                    case 1:
+                        //否
+                        break;
+                }
             }
         });
     }
