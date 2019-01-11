@@ -6,7 +6,6 @@ import com.dhr.simplepushstreamutil.entity.LiveAreaListEntity;
 import com.dhr.simplepushstreamutil.ui.form.MainForm;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import org.apache.mina.core.session.IoSession;
 
 import java.util.List;
 
@@ -27,15 +26,6 @@ public class CommandUtil {
             mainForm.getFormatListSuccess(resolutionBeans);
         } else {
             mainForm.getFormatListFail(fromServerBean.getResult());
-        }
-    }
-
-    public void getM3u8Url(FromServerBean fromServerBean) {
-        int code = fromServerBean.getCode();
-        if (0 == code) {
-            mainForm.getM3u8UrlSuccess(fromServerBean.getResult());
-        } else {
-            mainForm.getM3u8UrlFail(fromServerBean.getResult());
         }
     }
 

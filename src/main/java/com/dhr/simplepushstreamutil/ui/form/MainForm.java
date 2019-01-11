@@ -14,8 +14,6 @@ import org.jb2011.lnf.beautyeye.BeautyEyeLNFHelper;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.io.File;
@@ -42,7 +40,6 @@ public class MainForm extends JFrame {
     private LiveRoomUrlInfoDialog liveRoomUrlInfoDialog;
 
     private String resourceUrl;
-    private String m3u8Url;
     private String liveRoomUrl;
 
     private JsonUtil jsonUtil = new JsonUtil();
@@ -56,8 +53,6 @@ public class MainForm extends JFrame {
     private String userPassword;
 
     private int controlPanelHeight;
-
-    private boolean isLocalFile = false;
 
     private List<ResolutionBean> listResolutions = new ArrayList<>();
 
@@ -437,7 +432,6 @@ public class MainForm extends JFrame {
             localDataBean.setConfigSchemeBean(configSchemeBean);
             jsonUtil.saveDataToFile(LocalDataBean.class.getSimpleName(), gson.toJson(localDataBean));
         }
-//        showOrHideLiveRoomControlPanel();
     }
 
     /**
@@ -459,9 +453,7 @@ public class MainForm extends JFrame {
         } else {
             taLog.setText("开始连接服务器");
             try {
-                if (null == minaClient) {
-                    minaClient = new MinaClient(this, serverIp);
-                }
+                minaClient = new MinaClient(this, serverIp);
                 serverPort = Integer.parseInt(cacheServerPort);
                 executorService.execute(() -> {
                     try {
@@ -511,7 +503,6 @@ public class MainForm extends JFrame {
             showTipsDialog("请输入直播源地址后重试");
         } else {
             if (isQuickly) {
-                isLocalFile = false;
                 getFormatListInLinux();
             } else {
                 String message = "";
@@ -532,14 +523,11 @@ public class MainForm extends JFrame {
                     case 0:
                         //是
                         cbFormatList.removeAllItems();
-                        isLocalFile = false;
                         getFormatListInLinux();
                         break;
                     case 1:
                         //否
                         cbFormatList.removeAllItems();
-                        isLocalFile = true;
-                        m3u8Url = resourceUrl;
                         break;
                 }
             }
@@ -994,29 +982,6 @@ public class MainForm extends JFrame {
      * 推流
      */
     private void pushStream() {
-        if (isLocalFile) {
-            //直推m3u8或本地视频文件
-            pushStreamToLiveRoom();
-        } else {
-            if (0 == localDataBean.getConfigSchemeBean().getSchemeType()) {
-                startGetM3u8Url();
-            } else if (1 == localDataBean.getConfigSchemeBean().getSchemeType()) {
-                pushStreamToLiveRoom();
-            }
-        }
-    }
-
-    /**
-     * 推流到直播间
-     */
-    private void pushStreamToLiveRoom() {
-        pushStreamToLiveRoomInLinux();
-    }
-
-    /**
-     * linux平台推流
-     */
-    private void pushStreamToLiveRoomInLinux() {
         if (null == minaClient) {
             showTipsDialog("请先连接服务器后再进行操作");
         } else {
@@ -1036,7 +1001,21 @@ public class MainForm extends JFrame {
                         videoParams = " -ac 1 " + videoParams;
                     }
                     if (0 == localDataBean.getConfigSchemeBean().getSchemeType()) {
-                        cache = "ffmpeg -i " + m3u8Url + videoParams + "\"" + liveRoomUrl + "\"";
+                        String resolutionNo = "";
+                        if (isQuickly) {
+                            String resolution = localDataBean.getConfigQuicklyPushBean().getResolution();
+                            for (ResolutionBean resolutionBean : listResolutions) {
+                                if (resolution.equals(resolutionBean.getResolutionPx())) {
+                                    resolutionNo = resolutionBean.getResolutionNo();
+                                }
+                            }
+                            if (resolutionNo.isEmpty()) {
+                                resolutionNo = listResolutions.get(listResolutions.size() - 1).getResolutionNo();
+                            }
+                        } else {
+                            resolutionNo = listResolutions.get(cbFormatList.getSelectedIndex()).getResolutionNo();
+                        }
+                        cache = "youtube-dl -f " + resolutionNo + " " + resourceUrl + " -o - | ffmpeg -thread_queue_size 1024 -i pipe:0 " + videoParams + "\"" + liveRoomUrl + "\"";
                     } else {
                         String resolutionPx = "";
                         if (isQuickly) {
@@ -1077,10 +1056,10 @@ public class MainForm extends JFrame {
                                 resolutionPx = resolutionPx.substring(0, resolutionPx.lastIndexOf("("));
                             }
                         }
-                        cache = "streamlink -O " + resourceUrl + " " + resolutionPx + " | ffmpeg -i pipe:0 " + videoParams + "\"" + liveRoomUrl + "\"";
+                        cache = "streamlink -O " + resourceUrl + " " + resolutionPx + " | ffmpeg -thread_queue_size 1024 -i pipe:0 " + videoParams + "\"" + liveRoomUrl + "\"";
                     }
                     if (cbRecord.isSelected()) {
-                        SimpleDateFormat df1 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.CHINA);
+                        SimpleDateFormat df1 = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.CHINA);
                         String date = df1.format(new Date());
                         cache += " -c:v copy -c:a aac -vbsf h264_mp4toannexb \"" + "/root/spsu_" + date + ".mp4\"";
                     }
@@ -1102,124 +1081,6 @@ public class MainForm extends JFrame {
 
     public void pushStreamToLiveRoomFail(String log) {
         addTextToLog(log);
-    }
-
-    /**
-     * 开始获取m3u8地址
-     */
-    private void startGetM3u8Url() {
-        getM3u8UrlInLinux();
-    }
-
-
-    /**
-     * linux平台的获取m3u8地址
-     */
-    private void getM3u8UrlInLinux() {
-        if (null == minaClient) {
-            showTipsDialog("请先连接服务器后再进行操作");
-        } else {
-            executorService.execute(() -> {
-                addTextToLog("\n\n开始获取直播源，请稍候...");
-                try {
-                    String cmd;
-                    if (0 == localDataBean.getConfigSchemeBean().getSchemeType()) {
-                        if (isQuickly) {
-                            String resolution = localDataBean.getConfigQuicklyPushBean().getResolution();
-                            String cacheResolutionShort = "";
-                            switch (resolution) {
-                                case "640x360":
-                                    cacheResolutionShort = "360";
-                                    break;
-                                case "854x480":
-                                    cacheResolutionShort = "480";
-                                    break;
-                                case "1280x720":
-                                    cacheResolutionShort = "720";
-                                    break;
-                                case "1920x1080":
-                                    cacheResolutionShort = "1080";
-                                    break;
-                            }
-                            String resolutionNo = "";
-                            for (ResolutionBean resolutionBean : listResolutions) {
-                                String resolutionPx = resolutionBean.getResolutionPx();
-                                if (resolutionPx.contains(cacheResolutionShort)) {
-                                    resolutionNo = resolutionBean.getResolutionNo();
-                                }
-                            }
-                            if (resolutionNo.isEmpty()) {
-                                resolutionNo = listResolutions.get(listResolutions.size() - 1).getResolutionNo();
-                            }
-                            //通过youtube-dl获取m3u8地址
-                            cmd = "youtube-dl -f " + resolutionNo + " -g " + resourceUrl;
-                        } else {
-                            String resolutionNo = listResolutions.get(cbFormatList.getSelectedIndex()).getResolutionNo();
-                            //通过youtube-dl获取m3u8地址
-                            cmd = "youtube-dl -f " + resolutionNo + " -g " + resourceUrl;
-                        }
-                    } else {
-                        String resolutionPx = "";
-                        if (isQuickly) {
-                            String resolution = localDataBean.getConfigQuicklyPushBean().getResolution();
-                            String cacheResolutionShort = "";
-                            switch (resolution) {
-                                case "640x360":
-                                    cacheResolutionShort = "360";
-                                    break;
-                                case "854x480":
-                                    cacheResolutionShort = "480";
-                                    break;
-                                case "1280x720":
-                                    cacheResolutionShort = "720";
-                                    break;
-                                case "1920x1080":
-                                    cacheResolutionShort = "1080";
-                                    break;
-                            }
-                            for (ResolutionBean resolutionBean : listResolutions) {
-                                resolutionPx = resolutionBean.getResolutionPx();
-                                if (resolutionPx.contains("(")) {
-                                    resolutionPx = resolutionPx.substring(0, resolutionPx.lastIndexOf("("));
-                                }
-                                if (resolutionPx.contains(cacheResolutionShort)) {
-                                    break;
-                                }
-                            }
-                            if (resolutionPx.isEmpty()) {
-                                resolutionPx = listResolutions.get(listResolutions.size() - 1).getResolutionPx();
-                                if (resolutionPx.contains("(")) {
-                                    resolutionPx = resolutionPx.substring(0, resolutionPx.lastIndexOf("("));
-                                }
-                            }
-                        } else {
-                            resolutionPx = listResolutions.get(cbFormatList.getSelectedIndex()).getResolutionPx();
-                            if (resolutionPx.contains("(")) {
-                                resolutionPx = resolutionPx.substring(0, resolutionPx.lastIndexOf("("));
-                            }
-                        }
-                        //通过youtube-dl获取m3u8地址
-                        cmd = "streamlink --stream-url " + resourceUrl + " " + resolutionPx;
-                    }
-                    FromClientBean fromClientBean = new FromClientBean();
-                    fromClientBean.setType(ParseMessageUtil.TYPE_GETM3U8);
-                    fromClientBean.setCmd(cmd);
-                    minaClient.send(fromClientBean);
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                }
-            });
-        }
-    }
-
-    public void getM3u8UrlSuccess(String m3u8Url) {
-        MainForm.this.m3u8Url = m3u8Url;
-        addTextToLog("\n\n获取直播源成功");
-        pushStreamToLiveRoom();
-    }
-
-    public void getM3u8UrlFail(String errLog) {
-        addTextToLog(errLog);
     }
 
     /**
