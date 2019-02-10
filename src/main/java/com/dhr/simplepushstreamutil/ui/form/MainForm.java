@@ -66,6 +66,8 @@ public class MainForm extends JFrame {
     private boolean isConfigQuickly = false;
     private boolean isQuickly = false;
 
+    private MosaicDialog mosaicDialog;
+
     public static void main(String[] args) {
         try {
             BeautyEyeLNFHelper.frameBorderStyle = BeautyEyeLNFHelper.FrameBorderStyle.generalNoTranslucencyShadow;
@@ -985,94 +987,213 @@ public class MainForm extends JFrame {
         if (null == minaClient) {
             showTipsDialog("请先连接服务器后再进行操作");
         } else {
-            executorService.execute(() -> {
-                try {
-                    addTextToLog("\n\n开始组装推流参数即将开始推流，请稍候...");
-                    String videoParams = null;
-                    String cache;
-                    if (rbBoth.isSelected()) {
-                        videoParams = " -c:v copy -c:a aac -strict -2 -f flv ";
-                    } else if (rbOnlyAudio.isSelected()) {
-                        videoParams = " -vn -c:a aac -strict -2  -f flv ";
-                    } else if (rbOnlyImage.isSelected()) {
-                        videoParams = " -c:v copy -an -strict -2  -f flv ";
-                    }
-                    if (cbTwoInOne.isSelected()) {
-                        videoParams = " -ac 1 " + videoParams;
-                    }
-                    if (0 == localDataBean.getConfigSchemeBean().getSchemeType()) {
-                        String resolutionNo = "";
-                        if (isQuickly) {
-                            String resolution = localDataBean.getConfigQuicklyPushBean().getResolution();
-                            for (ResolutionBean resolutionBean : listResolutions) {
-                                if (resolution.equals(resolutionBean.getResolutionPx())) {
-                                    resolutionNo = resolutionBean.getResolutionNo();
-                                }
+            showMosaicDialog();
+        }
+    }
+
+    private void showMosaicDialog() {
+        int result = JOptionPane.showConfirmDialog(
+                MainForm.this, "是否配置高斯模糊？", "温馨提示：",
+                JOptionPane.YES_NO_OPTION
+        );
+        switch (result) {
+            case 0:
+                //是
+                if (null == mosaicDialog) {
+                    mosaicDialog = new MosaicDialog(this);
+                    mosaicDialog.pack();
+                }
+                mosaicDialog.setVisible(true);
+                break;
+            case 1:
+                //否
+                startPushStream();
+                break;
+        }
+
+    }
+
+    public void startPushStream(int blurWidth, int blurHeight, int x, int y) {
+        executorService.execute(() -> {
+            try {
+                addTextToLog("\n\n开始组装推流参数即将开始推流，请稍候...");
+                String videoParams = null;
+                String cache;
+                if (rbBoth.isSelected()) {
+                    videoParams = " -c:v copy -c:a aac -strict -2 -f flv ";
+                } else if (rbOnlyAudio.isSelected()) {
+                    videoParams = " -vn -c:a aac -strict -2  -f flv ";
+                } else if (rbOnlyImage.isSelected()) {
+                    videoParams = " -c:v copy -an -strict -2  -f flv ";
+                }
+                if (cbTwoInOne.isSelected()) {
+                    videoParams = " -ac 1 " + videoParams;
+                }
+//                    String str = " -vf \"[ina]fps=25,scale=-1:480[outa];[outa]split[blurin][originalin];[blurin]crop=300:300:554:0,boxblur=10:1[blurout];[originalin][blurout]overlay=x=554:y=0[out]\" -vcodec h264 ";
+//                String str = " -vf \"[ina]fps=30,scale=-1:480[outa];[outa]split[blurin][originalin];[blurin]crop=" + blurWidth + ":" + blurHeight + ":" + x + ":" + y + ",boxblur=10:1[blurout];[originalin][blurout]overlay=x=" + x + ":y=" + y + "[out]\" -vcodec h264 ";
+                String str = " -filter_complex \"[0:v]crop=" + blurWidth + ":" + blurHeight + ":" + x + ":" + y + ",boxblur=10[fg];[0:v][fg]overlay=" + x + ":" + y + "[v]\" -map \"[v]\" -map 0:a -c:v libx264 ";
+                if (0 == localDataBean.getConfigSchemeBean().getSchemeType()) {
+                    String resolutionNo = "";
+                    if (isQuickly) {
+                        String resolution = localDataBean.getConfigQuicklyPushBean().getResolution();
+                        for (ResolutionBean resolutionBean : listResolutions) {
+                            if (resolution.equals(resolutionBean.getResolutionPx())) {
+                                resolutionNo = resolutionBean.getResolutionNo();
                             }
-                            if (resolutionNo.isEmpty()) {
-                                resolutionNo = listResolutions.get(listResolutions.size() - 1).getResolutionNo();
-                            }
-                        } else {
-                            resolutionNo = listResolutions.get(cbFormatList.getSelectedIndex()).getResolutionNo();
                         }
-                        cache = "youtube-dl -f " + resolutionNo + " " + resourceUrl + " -o - | ffmpeg -thread_queue_size 1024 -i pipe:0 " + videoParams + "\"" + liveRoomUrl + "\"";
+                        if (resolutionNo.isEmpty()) {
+                            resolutionNo = listResolutions.get(listResolutions.size() - 1).getResolutionNo();
+                        }
                     } else {
-                        String resolutionPx = "";
-                        if (isQuickly) {
-                            String resolution = localDataBean.getConfigQuicklyPushBean().getResolution();
-                            String cacheResolutionShort = "";
-                            switch (resolution) {
-                                case "640x360":
-                                    cacheResolutionShort = "360";
-                                    break;
-                                case "854x480":
-                                    cacheResolutionShort = "480";
-                                    break;
-                                case "1280x720":
-                                    cacheResolutionShort = "720";
-                                    break;
-                                case "1920x1080":
-                                    cacheResolutionShort = "1080";
-                                    break;
+                        resolutionNo = listResolutions.get(cbFormatList.getSelectedIndex()).getResolutionNo();
+                    }
+                    cache = "youtube-dl -f " + resolutionNo + " " + resourceUrl + " -o - | ffmpeg -loglevel quiet -re -thread_queue_size 1024 -i pipe:0 " + str + "-c:a aac -preset ultrafast -strict -2 -f flv \"" + liveRoomUrl + "\"";
+                } else {
+                    String resolutionPx = "";
+                    if (isQuickly) {
+                        String resolution = localDataBean.getConfigQuicklyPushBean().getResolution();
+                        String cacheResolutionShort = "";
+                        switch (resolution) {
+                            case "640x360":
+                                cacheResolutionShort = "360";
+                                break;
+                            case "854x480":
+                                cacheResolutionShort = "480";
+                                break;
+                            case "1280x720":
+                                cacheResolutionShort = "720";
+                                break;
+                            case "1920x1080":
+                                cacheResolutionShort = "1080";
+                                break;
+                        }
+                        for (ResolutionBean resolutionBean : listResolutions) {
+                            resolutionPx = resolutionBean.getResolutionPx();
+                            if (resolutionPx.contains("(")) {
+                                resolutionPx = resolutionPx.substring(0, resolutionPx.lastIndexOf("("));
                             }
-                            for (ResolutionBean resolutionBean : listResolutions) {
-                                resolutionPx = resolutionBean.getResolutionPx();
-                                if (resolutionPx.contains("(")) {
-                                    resolutionPx = resolutionPx.substring(0, resolutionPx.lastIndexOf("("));
-                                }
-                                if (resolutionPx.contains(cacheResolutionShort)) {
-                                    break;
-                                }
+                            if (resolutionPx.contains(cacheResolutionShort)) {
+                                break;
                             }
-                            if (resolutionPx.isEmpty()) {
-                                resolutionPx = listResolutions.get(listResolutions.size() - 1).getResolutionPx();
-                                if (resolutionPx.contains("(")) {
-                                    resolutionPx = resolutionPx.substring(0, resolutionPx.lastIndexOf("("));
-                                }
-                            }
-                        } else {
-                            resolutionPx = listResolutions.get(cbFormatList.getSelectedIndex()).getResolutionPx();
+                        }
+                        if (resolutionPx.isEmpty()) {
+                            resolutionPx = listResolutions.get(listResolutions.size() - 1).getResolutionPx();
                             if (resolutionPx.contains("(")) {
                                 resolutionPx = resolutionPx.substring(0, resolutionPx.lastIndexOf("("));
                             }
                         }
-                        cache = "streamlink -O " + resourceUrl + " " + resolutionPx + " | ffmpeg -thread_queue_size 1024 -i pipe:0 " + videoParams + "\"" + liveRoomUrl + "\"";
+                    } else {
+                        resolutionPx = listResolutions.get(cbFormatList.getSelectedIndex()).getResolutionPx();
+                        if (resolutionPx.contains("(")) {
+                            resolutionPx = resolutionPx.substring(0, resolutionPx.lastIndexOf("("));
+                        }
                     }
-                    if (cbRecord.isSelected()) {
-                        SimpleDateFormat df1 = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.CHINA);
-                        String date = df1.format(new Date());
-                        cache += " -c:v copy -c:a aac -vbsf h264_mp4toannexb \"" + "/root/spsu_" + date + ".mp4\"";
-                    }
-                    System.out.println(cache);
-                    FromClientBean fromClientBean = new FromClientBean();
-                    fromClientBean.setType(ParseMessageUtil.TYPE_PUSHSTREAMTOLIVEROOM);
-                    fromClientBean.setCmd(cache);
-                    minaClient.send(fromClientBean);
-                } catch (Exception ex) {
-                    ex.printStackTrace();
+                    cache = "streamlink -O " + resourceUrl + " " + resolutionPx + " | ffmpeg -thread_queue_size 1024 -i pipe:0 " + str + "-c:a aac -preset ultrafast -strict -2 -f flv \"" + liveRoomUrl + "\"";
                 }
-            });
-        }
+                if (cbRecord.isSelected()) {
+                    SimpleDateFormat df1 = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.CHINA);
+                    String date = df1.format(new Date());
+                    cache += " -c:v copy -c:a aac -vbsf h264_mp4toannexb \"" + "/root/spsu_" + date + ".mp4\"";
+                }
+                System.out.println(cache);
+                FromClientBean fromClientBean = new FromClientBean();
+                fromClientBean.setType(ParseMessageUtil.TYPE_PUSHSTREAMTOLIVEROOM);
+                fromClientBean.setCmd(cache);
+                minaClient.send(fromClientBean);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+    }
+
+    private void startPushStream() {
+        executorService.execute(() -> {
+            try {
+                addTextToLog("\n\n开始组装推流参数即将开始推流，请稍候...");
+                String videoParams = null;
+                String cache;
+                if (rbBoth.isSelected()) {
+                    videoParams = " -c:v copy -c:a aac -strict -2 -f flv ";
+                } else if (rbOnlyAudio.isSelected()) {
+                    videoParams = " -vn -c:a aac -strict -2  -f flv ";
+                } else if (rbOnlyImage.isSelected()) {
+                    videoParams = " -c:v copy -an -strict -2  -f flv ";
+                }
+                if (cbTwoInOne.isSelected()) {
+                    videoParams = " -ac 1 " + videoParams;
+                }
+                if (0 == localDataBean.getConfigSchemeBean().getSchemeType()) {
+                    String resolutionNo = "";
+                    if (isQuickly) {
+                        String resolution = localDataBean.getConfigQuicklyPushBean().getResolution();
+                        for (ResolutionBean resolutionBean : listResolutions) {
+                            if (resolution.equals(resolutionBean.getResolutionPx())) {
+                                resolutionNo = resolutionBean.getResolutionNo();
+                            }
+                        }
+                        if (resolutionNo.isEmpty()) {
+                            resolutionNo = listResolutions.get(listResolutions.size() - 1).getResolutionNo();
+                        }
+                    } else {
+                        resolutionNo = listResolutions.get(cbFormatList.getSelectedIndex()).getResolutionNo();
+                    }
+                    cache = "youtube-dl -f " + resolutionNo + " " + resourceUrl + " -o - | ffmpeg -loglevel quiet -re -thread_queue_size 1024 -i pipe:0 " + videoParams + "\"" + liveRoomUrl + "\"";
+                } else {
+                    String resolutionPx = "";
+                    if (isQuickly) {
+                        String resolution = localDataBean.getConfigQuicklyPushBean().getResolution();
+                        String cacheResolutionShort = "";
+                        switch (resolution) {
+                            case "640x360":
+                                cacheResolutionShort = "360";
+                                break;
+                            case "854x480":
+                                cacheResolutionShort = "480";
+                                break;
+                            case "1280x720":
+                                cacheResolutionShort = "720";
+                                break;
+                            case "1920x1080":
+                                cacheResolutionShort = "1080";
+                                break;
+                        }
+                        for (ResolutionBean resolutionBean : listResolutions) {
+                            resolutionPx = resolutionBean.getResolutionPx();
+                            if (resolutionPx.contains("(")) {
+                                resolutionPx = resolutionPx.substring(0, resolutionPx.lastIndexOf("("));
+                            }
+                            if (resolutionPx.contains(cacheResolutionShort)) {
+                                break;
+                            }
+                        }
+                        if (resolutionPx.isEmpty()) {
+                            resolutionPx = listResolutions.get(listResolutions.size() - 1).getResolutionPx();
+                            if (resolutionPx.contains("(")) {
+                                resolutionPx = resolutionPx.substring(0, resolutionPx.lastIndexOf("("));
+                            }
+                        }
+                    } else {
+                        resolutionPx = listResolutions.get(cbFormatList.getSelectedIndex()).getResolutionPx();
+                        if (resolutionPx.contains("(")) {
+                            resolutionPx = resolutionPx.substring(0, resolutionPx.lastIndexOf("("));
+                        }
+                    }
+                    cache = "streamlink -O " + resourceUrl + " " + resolutionPx + " | ffmpeg -thread_queue_size 1024 -i pipe:0 " + videoParams + "\"" + liveRoomUrl + "\"";
+                }
+                if (cbRecord.isSelected()) {
+                    SimpleDateFormat df1 = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.CHINA);
+                    String date = df1.format(new Date());
+                    cache += " -c:v copy -c:a aac -vbsf h264_mp4toannexb \"" + "/root/spsu_" + date + ".mp4\"";
+                }
+                System.out.println(cache);
+                FromClientBean fromClientBean = new FromClientBean();
+                fromClientBean.setType(ParseMessageUtil.TYPE_PUSHSTREAMTOLIVEROOM);
+                fromClientBean.setCmd(cache);
+                minaClient.send(fromClientBean);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
     }
 
     public void pushStreamToLiveRoomSuccess(String log) {
